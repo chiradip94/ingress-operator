@@ -1,0 +1,12 @@
+ingress_annotations: {}
+host_prefix: "thrift"
+domain: "example.com"
+configure:
+  annotation:
+    "enable": "operator.custom.ingress.enable"
+    "port" : "operator.custom.ingress.svc.port"
+    "path": "operator.custom.ingress.path"
+    "path_type": "operator.custom.ingress.pathType"
+    "host_prefix" : "operator.custom.ingress.hostPrefix"
+    "domain": "operator.custom.ingress.domain"
+ 
