@@ -35,7 +35,20 @@ def get_svc_details(svc_object):
 
     return svc_details
 
+
+def is_ingress_present(name, namespace):
+    available = False
+    response = networking_v1_api.list_namespaced_ingress(namespace=namespace)
+    for ing in response.items:
+        if name == ing.metadata.name:
+            available = True
+    return available
+
+
 def create_ingress(namespace, svc_name, svc_port, host, path="/", path_type="Exact", annotations={}):
+    if is_ingress_present(svc_name,namespace):
+        print(f"Ingress {svc_name}.{namespace} is already present present.")
+        return
     print(f"Processing service {svc_name}.{namespace}")
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
@@ -63,11 +76,28 @@ def create_ingress(namespace, svc_name, svc_port, host, path="/", path_type="Exa
         )
     )
     # Creation of the Deployment in specified namespace
-    networking_v1_api.create_namespaced_ingress(
-        namespace=namespace,
-        body=body
-    )
-    print(f"Created ingress {svc_name}.{namespace}")
+    try:
+        networking_v1_api.create_namespaced_ingress(
+            namespace=namespace,
+            body=body
+        )
+        print(f"Created ingress {svc_name}.{namespace}")
+    except Exception as e:
+        print(f"Failed to create ingress {svc_name}.{namespace}")
+        print(e)
+
+
+def delete_ingress(name, namespace):
+    if is_ingress_present(name,namespace):
+        try:
+            networking_v1_api.delete_namespaced_ingress(name, namespace)
+            print(f"Deleted ingress {name}.{namespace}")
+        except Exception as e:
+            print(f"Failed to delete ingress {name}.{namespace}")
+            print(e)
+    else:
+        print(f"Ingress {name}.{namespace} not present.")
+
 
 def event():
     w = watch.Watch()
@@ -81,7 +111,6 @@ def event():
         elif event['type'] == "DELETED":
             ingress_details = get_svc_details(event["object"])
             if ingress_details:
-                networking_v1_api.delete_namespaced_ingress(name=ingress_details["name"], namespace=ingress_details["namespace"])
-                print(f"Deleted ingress {ingress_details['name']}.{ingress_details['namespace']}")
+                delete_ingress(name=ingress_details["name"], namespace=ingress_details["namespace"])
 
 event()
