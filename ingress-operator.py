@@ -3,6 +3,7 @@ import yaml
 
 config.load_kube_config()
 api_instance = client.CoreV1Api()
+networking_v1_api = client.NetworkingV1Api()
 
 with open("./config/config.yaml", 'r') as stream:
     cofigigurations = yaml.safe_load(stream)
@@ -35,12 +36,13 @@ def get_svc_details(svc_object):
     return svc_details
 
 def create_ingress(namespace, svc_name, svc_port, host, path="/", path_type="Exact", annotations={}):
-    networking_v1_api = client.NetworkingV1Api()
+    print(f"Processing service {svc_name}.{namespace}")
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
         metadata=client.V1ObjectMeta(name=svc_name, annotations=annotations),
         spec=client.V1IngressSpec(
+            ingress_class_name=cofigigurations["ingress_class_name"],
             rules=[client.V1IngressRule(
                 host=host,
                 http=client.V1HTTPIngressRuleValue(
@@ -65,16 +67,21 @@ def create_ingress(namespace, svc_name, svc_port, host, path="/", path_type="Exa
         namespace=namespace,
         body=body
     )
+    print(f"Created ingress {svc_name}.{namespace}")
 
 def event():
     w = watch.Watch()
     for event in w.stream(api_instance.list_service_for_all_namespaces, timeout_seconds=0) :
-        print(f"{event['type']} - {event['object'].metadata.name}")
+        print(f"Detected: {event['type']} - {event['object'].metadata.name}")
 
         if event['type'] == "ADDED":
             ingress_details = get_svc_details(event["object"])
-            print (ingress_details)
             if ingress_details:
                 create_ingress(ingress_details["namespace"], ingress_details["name"], ingress_details["port"], ingress_details["host"], ingress_details["path"], ingress_details["path_type"], ingress_details["ingress_annotations"])
+        elif event['type'] == "DELETED":
+            ingress_details = get_svc_details(event["object"])
+            if ingress_details:
+                networking_v1_api.delete_namespaced_ingress(name=ingress_details["name"], namespace=ingress_details["namespace"])
+                print(f"Deleted ingress {ingress_details['name']}.{ingress_details['namespace']}")
 
 event()

@@ -1,6 +1,7 @@
 ingress_annotations: {}
 host_prefix: "thrift"
 domain: "example.com"
+ingress_class_name: "nginx"
 configure:
   annotation:
     "enable": "operator.custom.ingress.enable"
