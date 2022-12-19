@@ -105,7 +105,7 @@ def delete_ingress(name, namespace):
 
 def event():
     w = watch.Watch()
-    for event in w.stream(api_instance.list_namespaced_service, namespace=cofigigurations["namespace"], timeout_seconds=0) :
+    for event in w.stream(api_instance.list_service_for_all_namespaces, timeout_seconds=0) :
         print(f"Detected: {event['type']} - {event['object'].metadata.name}")
 
         if event['type'] == "ADDED":
