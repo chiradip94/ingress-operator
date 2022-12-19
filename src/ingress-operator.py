@@ -1,7 +1,7 @@
 from kubernetes import client, config, watch
 import yaml
 
-config.load_kube_config()
+config.load_incluster_config()
 api_instance = client.CoreV1Api()
 networking_v1_api = client.NetworkingV1Api()
 
@@ -16,12 +16,16 @@ def get_svc_details(svc_object):
     path_type_anotation = cofigigurations["configure"]["annotation"]["path_type"]
     host_prefix_anotation = cofigigurations["configure"]["annotation"]["host_prefix"]
     domain_anotation = cofigigurations["configure"]["annotation"]["domain"]
-    if svc_object.metadata.annotations != None and enable_anotation in svc_object.metadata.annotations:
+    if svc_object.metadata.annotations is not None and enable_anotation in svc_object.metadata.annotations:
         if svc_object.metadata.annotations[enable_anotation] == "true":
             svc_details["namespace"] = svc_object.metadata.namespace
             svc_details["name"] = svc_object.metadata.name
-            svc_details["port"] = svc_object.metadata.annotations[port_anotation]
-            svc_details["path"] = svc_object.metadata.annotations[path_anotation]
+            try:
+                svc_details["port"] = svc_object.metadata.annotations[port_anotation]
+                svc_details["path"] = svc_object.metadata.annotations[path_anotation]
+            except Exception as e:
+                print("One or more mandatory annotations were not present")
+                return {}
             svc_details["path_type"] = svc_object.metadata.annotations[path_type_anotation] \
                 if path_type_anotation in svc_object.metadata.annotations else "Exact"
 
@@ -101,7 +105,7 @@ def delete_ingress(name, namespace):
 
 def event():
     w = watch.Watch()
-    for event in w.stream(api_instance.list_service_for_all_namespaces, timeout_seconds=0) :
+    for event in w.stream(api_instance.list_namespaced_service, namespace=cofigigurations["namespace"], timeout_seconds=0) :
         print(f"Detected: {event['type']} - {event['object'].metadata.name}")
 
         if event['type'] == "ADDED":
